@@ -1,4 +1,8 @@
 # The Minimum-Variance Portfolio
 
-One popular method for creating a risk-averse portfolio is by minimizing the variance, which (for a portfolio of 2 assets) is given by:
+Author: Mitch Mitchell (jbm8efn@virginia.edu)
 
+**Files:**
+
+* [portfolio_optimization.ipynb](portfolio_optimization.ipynb):
+* [portfolioOpt.py](portfolioOpt.py): 
