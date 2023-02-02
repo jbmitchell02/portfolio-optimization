@@ -7,6 +7,10 @@ import pandas as pd
 import yfinance as yf
 from scipy import optimize
 
+
+# tickers: Ticker symbols for stocks to be optimized over (last entry should be market index if using CAPM functionality)
+# period: Amount of historical data to get (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, or max)
+# interval: Amount of time between data points (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, or 3mo)
 def get_data(tickers, period, interval):
     fields = []
     for i in range(len(tickers)):
@@ -20,6 +24,9 @@ def get_data(tickers, period, interval):
     )[fields]
     return df
 
+
+# df: Dataframe containing stock 'Close' data (preferably from get_data method)
+# type: Type of distribution to be used (norm or log)
 def get_returns(df, type={'norm', 'log'}):
     if type == 'norm':
         returns = df.pct_change().dropna()
@@ -30,6 +37,9 @@ def get_returns(df, type={'norm', 'log'}):
         returns = returns.mean() * 252
         return returns
 
+
+# df: Dataframe containing stock 'Close' data (preferably from get_data method)
+# type: Type of distribution to be used (norm or log)
 def get_cov(df, type={'norm', 'log'}):
     if type == 'norm':
         cov = df.pct_change().dropna()
@@ -40,17 +50,28 @@ def get_cov(df, type={'norm', 'log'}):
         cov = cov.cov() * 252
         return cov
 
+
+# cov: Covariance matrix of stocks (including market index)
+# stock: Ticker symbol for stock to generate beta for
+# market: Ticker symbol for market index
 def find_beta(cov, stock, market):
     a = cov[(stock, 'Close')][(market, 'Close')]
     b = cov[(market, 'Close')][(market, 'Close')]
     return (a / b)
 
+
+# cov: Covariance matrix of stocks (including market index)
+# tickers: Ticker symbols for stocks to calculate beta for
 def calc_beta(cov, tickers):
     betas = pd.DataFrame(columns = ['Beta'])
     for i in tickers:
         betas.loc[i] = find_beta(cov, i, tickers[len(tickers) - 1])
     return betas
 
+
+# returns: Expected yearly returns for stocks
+# r_f: Risk-free rate
+# betas: Beta values for stocks (preferably from calc_beta method)
 def capm_returns(returns, r_f, betas):
     returns = pd.DataFrame()
     returns['Returns'] = returns - r_f
@@ -58,22 +79,38 @@ def capm_returns(returns, r_f, betas):
         returns.iloc[i]['Returns'] = returns.iloc[i]['Returns'] * betas.iloc[i] + r_f
     return returns
 
+
+# w: Portfolio weights
+# cov: Covariance matrix of stocks
 def portfolio_var(w, cov):
     w = np.matrix(w)
     cov = np.matrix(cov)
     result = w * cov * w.T
     return result
 
-def portfolio_returns(w, yearly_returns):
-    w = np.matrix(w)
-    yearly_returns = np.matrix(yearly_returns)
-    return np.sum(w * yearly_returns.T)
 
+# w: Portfolio weights
+# returns: Expected yearly returns for stocks
+def portfolio_returns(w, returns):
+    w = np.matrix(w)
+    returns = np.matrix(returns)
+    return np.sum(w * returns.T)
+
+
+# w: Portfolio weights
+# cov: Covariance matrix of stocks
+# r_f: Risk-free rate
 def portfolio_sharpe(w, cov, r_f):
     a = portfolio_returns(w, cov) - r_f
     b = math.sqrt(portfolio_var(w, cov))
     return -a / b
 
+
+# tickers: Ticker symbols for stocks to be optimized over (last entry should be market index if using CAPM functionality)
+# period: Amount of historical data to get (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, or max)
+# interval: Amount of time between data points (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, or 3mo)
+# dist: Type of distribution to be used (norm or log)
+# shorting: Whether or not shorting is allowed (unexpected results may occur if allowed)
 def abs_min_var(tickers, period, interval, dist={'norm', 'log'}, shorting={False, True}):
     w0 = [1 / len(tickers)] * len(tickers)
     bounds = [()]
@@ -94,6 +131,14 @@ def abs_min_var(tickers, period, interval, dist={'norm', 'log'}, shorting={False
     )
     return dict(zip(tickers, optimal.x))
 
+
+# tickers: Ticker symbols for stocks to be optimized over (last entry should be market index if using CAPM functionality)
+# period: Amount of historical data to get (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, or max)
+# interval: Amount of time between data points (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, or 3mo)
+# target: Target value for expected yearly returns or beta
+# cons: Which additional constraint to use (returns or beta)
+# dist: Type of distribution to be used (norm or log)
+# shorting: Whether or not shorting is allowed (unexpected results may occur if allowed)
 def min_var(tickers, period, interval, target, cons={'returns', 'beta'}, dist={'norm', 'log'}, shorting={False, True}):
     w0 = [1 / len(tickers)] * len(tickers)
     bounds = [()]
@@ -116,6 +161,13 @@ def min_var(tickers, period, interval, target, cons={'returns', 'beta'}, dist={'
     )
     return dict(zip(tickers, optimal.x))
 
+
+# tickers: Ticker symbols for stocks to be optimized over (last entry should be market index if using CAPM functionality)
+# period: Amount of historical data to get (1d, 5d, 1mo, 3mo, 6mo, 1y, 2y, 5y, 10y, ytd, or max)
+# interval: Amount of time between data points (1m, 2m, 5m, 15m, 30m, 60m, 90m, 1h, 1d, 5d, 1wk, 1mo, or 3mo)
+# r_f: Risk-free rate
+# dist: Type of distribution to be used (norm or log)
+# shorting: Whether or not shorting is allowed (unexpected results may occur if allowed)
 def max_sharpe(tickers, period, interval, r_f, dist={'norm', 'log'}, shorting={False, True}):
     w0 = [1 / len(tickers)] * len(tickers)
     bounds = [()]
@@ -135,6 +187,8 @@ def max_sharpe(tickers, period, interval, r_f, dist={'norm', 'log'}, shorting={F
     )
     return dict(zip(tickers, optimal.x))
 
+
+# Main method
 if __name__ == '__main__':
     market = '^GSPC'
     tickers = [
