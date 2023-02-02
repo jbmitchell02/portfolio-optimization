@@ -206,12 +206,11 @@ if __name__ == '__main__':
     ]
     period = '5y'
     interval = '1d'
-    df = get_data(tickers, period, interval)
-    allow_short = False
+    target = 0.12
+    cons = 'returns'
     r_f = 0.01
     dist = 'log'
-    cons = 'returns'
-    target = 0.12
+    allow_short = False
     optimal1 = abs_min_var(tickers, period, interval, dist, allow_short)
     optimal2 = min_var(tickers, period, interval, target, cons, dist, allow_short)
     optimal3 = max_sharpe(tickers, period, interval, r_f, dist, allow_short)
